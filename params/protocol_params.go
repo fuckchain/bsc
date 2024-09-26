@@ -29,6 +29,8 @@ const (
 	GenesisGasLimit      uint64 = 4712388            // Gas limit of the Genesis block.
 	PayBidTxGasLimit     uint64 = 25000              // Gas limit of the PayBidTx in the types.BidArgs.
 
+	MaxMessageSize uint32 = 10 * 1024 * 1024 // MaxMessageSize is the maximum cap on the size of a eth protocol message.
+
 	MaximumExtraDataSize  uint64 = 32       // Maximum size extra data may be after Genesis.
 	ForkIDSize            uint64 = 4        // The length of fork id
 	ExpByteGas            uint64 = 10       // Times ceil(log256(exponent)) for the EXP instruction.
@@ -192,6 +194,11 @@ var (
 	MinBlocksForBlobRequests           uint64 = 524288              // it keeps blob data available for ~18.2 days in local, ref: https://github.com/bnb-chain/BEPs/blob/master/BEPs/BEP-336.md#51-parameters.
 	DefaultExtraReserveForBlobRequests uint64 = 1 * (24 * 3600) / 3 // it adds more time for expired blobs for some request cases, like expiry blob when remote peer is syncing, default 1 day.
 	BreatheBlockInterval               uint64 = 86400               // Controls the interval for updateValidatorSetV2
+	// used for testing:
+	//     [1,9] except 2 --> used as turn length directly
+	//                  2 --> use random values to test switching turn length
+	// 0 and other values --> get turn length from contract
+	FixedTurnLength uint64 = 0
 )
 
 // Gas discount table for BLS12-381 G1 and G2 multi exponentiation operations

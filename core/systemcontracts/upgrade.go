@@ -4,17 +4,17 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"reflect"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
-
+	"github.com/ethereum/go-ethereum/core/systemcontracts/bohr"
 	"github.com/ethereum/go-ethereum/core/systemcontracts/bruno"
 	"github.com/ethereum/go-ethereum/core/systemcontracts/euler"
 	"github.com/ethereum/go-ethereum/core/systemcontracts/feynman"
 	feynmanFix "github.com/ethereum/go-ethereum/core/systemcontracts/feynman_fix"
 	"github.com/ethereum/go-ethereum/core/systemcontracts/gibbs"
+	haberFix "github.com/ethereum/go-ethereum/core/systemcontracts/haber_fix"
 	"github.com/ethereum/go-ethereum/core/systemcontracts/kepler"
 	"github.com/ethereum/go-ethereum/core/systemcontracts/luban"
 	"github.com/ethereum/go-ethereum/core/systemcontracts/mirror"
@@ -23,6 +23,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/systemcontracts/planck"
 	"github.com/ethereum/go-ethereum/core/systemcontracts/plato"
 	"github.com/ethereum/go-ethereum/core/systemcontracts/ramanujan"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 type UpgradeConfig struct {
@@ -38,7 +41,7 @@ type Upgrade struct {
 	Configs     []*UpgradeConfig
 }
 
-type upgradeHook func(blockNumber *big.Int, contractAddr common.Address, statedb *state.StateDB) error
+type upgradeHook func(blockNumber *big.Int, contractAddr common.Address, statedb vm.StateDB) error
 
 const (
 	mainNet    = "Mainnet"
@@ -75,6 +78,10 @@ var (
 	feynmanUpgrade = make(map[string]*Upgrade)
 
 	feynmanFixUpgrade = make(map[string]*Upgrade)
+
+	haberFixUpgrade = make(map[string]*Upgrade)
+
+	bohrUpgrade = make(map[string]*Upgrade)
 )
 
 func init() {
@@ -701,12 +708,93 @@ func init() {
 			},
 		},
 	}
+
+	haberFixUpgrade[mainNet] = &Upgrade{
+		UpgradeName: "haberFix",
+		Configs: []*UpgradeConfig{
+			{
+				ContractAddr: common.HexToAddress(ValidatorContract),
+				CommitUrl:    "https://github.com/bnb-chain/bsc-genesis-contract/commit/b743ce3f1f1e94c349b175cd6593bc263463b33b",
+				Code:         haberFix.MainnetValidatorContract,
+			},
+			{
+				ContractAddr: common.HexToAddress(SlashContract),
+				CommitUrl:    "https://github.com/bnb-chain/bsc-genesis-contract/commit/b743ce3f1f1e94c349b175cd6593bc263463b33b",
+				Code:         haberFix.MainnetSlashContract,
+			},
+		},
+	}
+
+	haberFixUpgrade[chapelNet] = &Upgrade{
+		UpgradeName: "haberFix",
+		Configs: []*UpgradeConfig{
+			{
+				ContractAddr: common.HexToAddress(ValidatorContract),
+				CommitUrl:    "https://github.com/bnb-chain/bsc-genesis-contract/commit/b743ce3f1f1e94c349b175cd6593bc263463b33b",
+				Code:         haberFix.ChapelValidatorContract,
+			},
+			{
+				ContractAddr: common.HexToAddress(SlashContract),
+				CommitUrl:    "https://github.com/bnb-chain/bsc-genesis-contract/commit/b743ce3f1f1e94c349b175cd6593bc263463b33b",
+				Code:         haberFix.ChapelSlashContract,
+			},
+		},
+	}
+
+	bohrUpgrade[mainNet] = &Upgrade{
+		UpgradeName: "bohr",
+		Configs: []*UpgradeConfig{
+			{
+				ContractAddr: common.HexToAddress(ValidatorContract),
+				CommitUrl:    "https://github.com/bnb-chain/bsc-genesis-contract/commit/398c9364aad5261c1ecd90ac3ab2df89b65c45e3",
+				Code:         bohr.MainnetValidatorContract,
+			},
+			{
+				ContractAddr: common.HexToAddress(StakeHubContract),
+				CommitUrl:    "https://github.com/bnb-chain/bsc-genesis-contract/commit/398c9364aad5261c1ecd90ac3ab2df89b65c45e3",
+				Code:         bohr.MainnetStakeHubContract,
+			},
+		},
+	}
+
+	bohrUpgrade[chapelNet] = &Upgrade{
+		UpgradeName: "bohr",
+		Configs: []*UpgradeConfig{
+			{
+				ContractAddr: common.HexToAddress(ValidatorContract),
+				CommitUrl:    "https://github.com/bnb-chain/bsc-genesis-contract/commit/398c9364aad5261c1ecd90ac3ab2df89b65c45e3",
+				Code:         bohr.ChapelValidatorContract,
+			},
+			{
+				ContractAddr: common.HexToAddress(StakeHubContract),
+				CommitUrl:    "https://github.com/bnb-chain/bsc-genesis-contract/commit/398c9364aad5261c1ecd90ac3ab2df89b65c45e3",
+				Code:         bohr.ChapelStakeHubContract,
+			},
+		},
+	}
+
+	bohrUpgrade[rialtoNet] = &Upgrade{
+		UpgradeName: "bohr",
+		Configs: []*UpgradeConfig{
+			{
+				ContractAddr: common.HexToAddress(ValidatorContract),
+				CommitUrl:    "https://github.com/bnb-chain/bsc-genesis-contract/commit/398c9364aad5261c1ecd90ac3ab2df89b65c45e3",
+				Code:         bohr.RialtoValidatorContract,
+			},
+			{
+				ContractAddr: common.HexToAddress(StakeHubContract),
+				CommitUrl:    "https://github.com/bnb-chain/bsc-genesis-contract/commit/398c9364aad5261c1ecd90ac3ab2df89b65c45e3",
+				Code:         bohr.RialtoStakeHubContract,
+			},
+		},
+	}
 }
 
-func UpgradeBuildInSystemContract(config *params.ChainConfig, blockNumber *big.Int, lastBlockTime uint64, blockTime uint64, statedb *state.StateDB) {
-	if config == nil || blockNumber == nil || statedb == nil {
+func UpgradeBuildInSystemContract(config *params.ChainConfig, blockNumber *big.Int, lastBlockTime uint64, blockTime uint64, statedb vm.StateDB) {
+	if config == nil || blockNumber == nil || statedb == nil || reflect.ValueOf(statedb).IsNil() {
 		return
 	}
+
 	var network string
 	switch GenesisHash {
 	/* Add mainnet genesis hash */
@@ -777,12 +865,20 @@ func UpgradeBuildInSystemContract(config *params.ChainConfig, blockNumber *big.I
 		applySystemContractUpgrade(feynmanFixUpgrade[network], blockNumber, statedb, logger)
 	}
 
+	if config.IsOnHaberFix(blockNumber, lastBlockTime, blockTime) {
+		applySystemContractUpgrade(haberFixUpgrade[network], blockNumber, statedb, logger)
+	}
+
+	if config.IsOnBohr(blockNumber, lastBlockTime, blockTime) {
+		applySystemContractUpgrade(bohrUpgrade[network], blockNumber, statedb, logger)
+	}
+
 	/*
 		apply other upgrades
 	*/
 }
 
-func applySystemContractUpgrade(upgrade *Upgrade, blockNumber *big.Int, statedb *state.StateDB, logger log.Logger) {
+func applySystemContractUpgrade(upgrade *Upgrade, blockNumber *big.Int, statedb vm.StateDB, logger log.Logger) {
 	if upgrade == nil {
 		logger.Info("Empty upgrade config", "height", blockNumber.String())
 		return
@@ -799,7 +895,7 @@ func applySystemContractUpgrade(upgrade *Upgrade, blockNumber *big.Int, statedb 
 			}
 		}
 
-		newContractCode, err := hex.DecodeString(cfg.Code)
+		newContractCode, err := hex.DecodeString(strings.TrimSpace(cfg.Code))
 		if err != nil {
 			panic(fmt.Errorf("failed to decode new contract code: %s", err.Error()))
 		}

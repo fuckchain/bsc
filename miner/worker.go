@@ -70,6 +70,12 @@ const (
 
 	// the default to wait for the mev miner to finish
 	waitMEVMinerEndTimeLimit = 50 * time.Millisecond
+
+	// Reserve block size for the following 3 components:
+	// a. System transactions at the end of the block
+	// b. Seal in the block header
+	// c. Overhead from RLP encoding
+	blockReserveSize = 100 * 1024
 )
 
 var (
@@ -89,6 +95,7 @@ type environment struct {
 	signer   types.Signer
 	state    *state.StateDB // apply state changes here
 	tcount   int            // tx count in cycle
+	size     uint32         // almost accurate block size,
 	gasPool  *core.GasPool  // available gas used to pack transactions
 	coinbase common.Address
 
@@ -105,6 +112,7 @@ func (env *environment) copy() *environment {
 		signer:   env.signer,
 		state:    env.state.Copy(),
 		tcount:   env.tcount,
+		size:     env.size,
 		coinbase: env.coinbase,
 		header:   types.CopyHeader(env.header),
 		receipts: copyReceipts(env.receipts),
@@ -895,6 +903,13 @@ LOOP:
 			txs.Pop()
 			continue
 		}
+		// If we don't have enough size left for the next transaction, skip it.
+		if env.size+uint32(tx.Size())+blockReserveSize > params.MaxMessageSize {
+			log.Trace("Not enough size left for transaction", "hash", ltx.Hash,
+				"env.size", env.size, "needed", uint32(tx.Size()))
+			txs.Pop()
+			continue
+		}
 		// Error may be ignored here. The error has already been checked
 		// during transaction acceptance is the transaction pool.
 		from, _ := types.Sender(env.signer, tx)
@@ -920,6 +935,7 @@ LOOP:
 			// Everything ok, collect the logs and shift in the next transaction from the same account
 			coalescedLogs = append(coalescedLogs, logs...)
 			env.tcount++
+			env.size += uint32(tx.Size()) // size of BlobTxSidecar included
 			txs.Shift()
 
 		default:
@@ -1032,6 +1048,8 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 		}
 		if w.chainConfig.Parlia == nil {
 			header.ParentBeaconRoot = genParams.beaconRoot
+		} else if w.chainConfig.IsBohr(header.Number, header.Time) {
+			header.ParentBeaconRoot = new(common.Hash)
 		}
 	}
 	// Could potentially happen if starting to mine in an odd state.
@@ -1053,6 +1071,9 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 		vmenv := vm.NewEVM(context, vm.TxContext{}, env.state, w.chainConfig, vm.Config{})
 		core.ProcessBeaconBlockRoot(*header.ParentBeaconRoot, vmenv, env.state)
 	}
+
+	env.size = uint32(env.header.Size())
+
 	return env, nil
 }
 
@@ -1371,7 +1392,13 @@ LOOP:
 				bestWork = bestBid.env
 				from = bestBid.bid.Builder
 
-				log.Debug("BidSimulator: bid win", "block", bestWork.header.Number.Uint64(), "bid", bestBid.bid.Hash())
+				log.Info("[BUILDER BLOCK]",
+					"block", bestWork.header.Number.Uint64(),
+					"builder", from,
+					"blockReward", weiToEtherStringF6(bestBid.packedBlockReward),
+					"validatorReward", weiToEtherStringF6(bestBid.packedValidatorReward),
+					"bid", bestBid.bid.Hash().TerminalString(),
+				)
 			}
 		}
 	}

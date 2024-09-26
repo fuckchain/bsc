@@ -631,8 +631,9 @@ func (b testBackend) TxPoolContentFrom(addr common.Address) ([]*types.Transactio
 func (b testBackend) SubscribeNewTxsEvent(events chan<- core.NewTxsEvent) event.Subscription {
 	panic("implement me")
 }
-func (b testBackend) ChainConfig() *params.ChainConfig { return b.chain.Config() }
-func (b testBackend) Engine() consensus.Engine         { return b.chain.Engine() }
+func (b testBackend) ChainConfig() *params.ChainConfig             { return b.chain.Config() }
+func (b testBackend) Engine() consensus.Engine                     { return b.chain.Engine() }
+func (b testBackend) CurrentValidators() ([]common.Address, error) { return []common.Address{}, nil }
 func (b testBackend) GetLogs(ctx context.Context, blockHash common.Hash, number uint64) ([][]*types.Log, error) {
 	panic("implement me")
 }
@@ -650,7 +651,8 @@ func (b testBackend) ServiceFilter(ctx context.Context, session *bloombits.Match
 	panic("implement me")
 }
 
-func (b *testBackend) MevRunning() bool { return false }
+func (b *testBackend) MevRunning() bool                       { return false }
+func (b *testBackend) HasBuilder(builder common.Address) bool { return false }
 func (b *testBackend) MevParams() *types.MevParams {
 	return &types.MevParams{}
 }

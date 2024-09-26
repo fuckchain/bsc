@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/parlia"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -440,6 +441,16 @@ func (b *EthAPIBackend) Engine() consensus.Engine {
 	return b.eth.engine
 }
 
+func (b *EthAPIBackend) CurrentValidators() ([]common.Address, error) {
+	if p, ok := b.eth.engine.(*parlia.Parlia); ok {
+		service := p.APIs(b.Chain())[0].Service
+		currentHead := rpc.LatestBlockNumber
+		return service.(*parlia.API).GetValidators(&currentHead)
+	}
+
+	return []common.Address{}, errors.New("not supported")
+}
+
 func (b *EthAPIBackend) CurrentHeader() *types.Header {
 	return b.eth.blockchain.CurrentHeader()
 }
@@ -482,6 +493,10 @@ func (b *EthAPIBackend) AddBuilder(builder common.Address, url string) error {
 
 func (b *EthAPIBackend) RemoveBuilder(builder common.Address) error {
 	return b.Miner().RemoveBuilder(builder)
+}
+
+func (b *EthAPIBackend) HasBuilder(builder common.Address) bool {
+	return b.Miner().HasBuilder(builder)
 }
 
 func (b *EthAPIBackend) SendBid(ctx context.Context, bid *types.BidArgs) (common.Hash, error) {

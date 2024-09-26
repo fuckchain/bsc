@@ -62,7 +62,7 @@ type Config struct {
 
 // DefaultConfig contains default settings for miner.
 var DefaultConfig = Config{
-	GasCeil:  30000000,
+	GasCeil:  0,
 	GasPrice: big.NewInt(params.GWei),
 
 	// The default recommit time is chosen as two seconds since
@@ -102,7 +102,7 @@ func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *even
 		worker:  newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, false),
 	}
 
-	miner.bidSimulator = newBidSimulator(&config.Mev, config.DelayLeftOver, config.GasPrice, eth.BlockChain(), chainConfig, engine, miner.worker)
+	miner.bidSimulator = newBidSimulator(&config.Mev, config.DelayLeftOver, config.GasPrice, eth, chainConfig, engine, miner.worker)
 	miner.worker.setBestBidFetcher(miner.bidSimulator)
 
 	miner.wg.Add(1)

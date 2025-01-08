@@ -36,6 +36,7 @@ import (
 	cmath "github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -2637,6 +2638,18 @@ func (s *BundleAPI) CallBundle(ctx context.Context, args CallBundleArgs) (map[st
 	} else {
 		_, cancel = context.WithCancel(ctx)
 	}
+
+	// EIP-4844: Cancun for blobBaseFee
+	if s.b.ChainConfig().IsCancun(header.Number, header.Time) {
+		var excess uint64
+		if s.b.ChainConfig().IsCancun(parent.Number, parent.Time) {
+			excess = eip4844.CalcExcessBlobGas(*parent.ExcessBlobGas, *parent.BlobGasUsed)
+		} else {
+			excess = eip4844.CalcExcessBlobGas(0, 0)
+		}
+		header.ExcessBlobGas = &excess
+	}
+
 	// Make sure the context is cancelled when the call has completed
 	// this makes sure resources are cleaned up.
 	defer cancel()

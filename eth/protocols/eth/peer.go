@@ -85,6 +85,9 @@ type Peer struct {
 	term   chan struct{} // Termination channel to stop the broadcasters
 	txTerm chan struct{} // Termination channel to stop the tx broadcasters
 	lock   sync.RWMutex  // Mutex protecting the internal fields
+
+	// for testing
+	blockNumber uint64 // block number of the last block received
 }
 
 // NewPeer creates a wrapper for a network connection and negotiated  protocol
@@ -107,6 +110,8 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 		txpool:          txpool,
 		term:            make(chan struct{}),
 		txTerm:          make(chan struct{}),
+
+		blockNumber: 0,
 	}
 	// Start up all the broadcasters
 	go peer.broadcastBlocks()
@@ -150,6 +155,10 @@ func (p *Peer) Lagging() bool {
 
 func (p *Peer) MarkLagging() {
 	p.lagging = true
+}
+
+func (p *Peer) BlockNumber() uint64 {
+	return p.blockNumber
 }
 
 // Head retrieves the current head hash and total difficulty of the peer.

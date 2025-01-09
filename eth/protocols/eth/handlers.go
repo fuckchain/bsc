@@ -329,6 +329,7 @@ func handleNewBlock(backend Backend, msg Decoder, peer *Peer) error {
 
 	// Mark the peer as owning the block
 	peer.markBlock(ann.Block.Hash())
+	peer.blockNumber = ann.Block.NumberU64()
 
 	return backend.Handle(peer, ann)
 }

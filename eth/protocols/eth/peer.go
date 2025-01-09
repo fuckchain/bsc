@@ -20,6 +20,7 @@ import (
 	"math/big"
 	"math/rand"
 	"sync"
+	"time"
 
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/ethereum/go-ethereum/common"
@@ -87,7 +88,9 @@ type Peer struct {
 	lock   sync.RWMutex  // Mutex protecting the internal fields
 
 	// for testing
+	boundAt     time.Time
 	blockNumber uint64 // block number of the last block received
+	txSum       uint64 // rate of transactions received
 }
 
 // NewPeer creates a wrapper for a network connection and negotiated  protocol
@@ -111,7 +114,9 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 		term:            make(chan struct{}),
 		txTerm:          make(chan struct{}),
 
+		boundAt:     time.Now(),
 		blockNumber: 0,
+		txSum:       0,
 	}
 	// Start up all the broadcasters
 	go peer.broadcastBlocks()
@@ -155,10 +160,6 @@ func (p *Peer) Lagging() bool {
 
 func (p *Peer) MarkLagging() {
 	p.lagging = true
-}
-
-func (p *Peer) BlockNumber() uint64 {
-	return p.blockNumber
 }
 
 // Head retrieves the current head hash and total difficulty of the peer.
@@ -518,4 +519,8 @@ func (k *knownCache) Contains(hash common.Hash) bool {
 // Cardinality returns the number of elements in the set.
 func (k *knownCache) Cardinality() int {
 	return k.hashes.Cardinality()
+}
+
+func (p *Peer) Stat() (uint64, uint64, time.Time) {
+	return p.blockNumber, p.txSum, p.boundAt
 }

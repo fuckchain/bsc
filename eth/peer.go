@@ -34,6 +34,8 @@ type ethPeerInfo struct {
 	Difficulty  *big.Int `json:"difficulty"`  // Total difficulty of the peer's blockchain
 	Head        string   `json:"head"`        // Hex hash of the peer's best owned block
 	BlockNumber uint64   `json:"blockNumber"` // Block number of the peer's best owned block
+	BoundAt     int64    `json:"boundAt"`     // Time when the peer was bound
+	TxSum       uint64   `json:"txSum"`       // Total number of transactions
 }
 
 // ethPeer is a wrapper around eth.Peer to maintain a few extra metadata.
@@ -47,12 +49,15 @@ type ethPeer struct {
 // info gathers and returns some `eth` protocol metadata known about a peer.
 func (p *ethPeer) info() *ethPeerInfo {
 	hash, td := p.Head()
+	blockNumber, txSum, boundAt := p.Stat()
 
 	return &ethPeerInfo{
 		Version:     p.Version(),
 		Difficulty:  td,
 		Head:        hash.String(),
-		BlockNumber: p.BlockNumber(),
+		BlockNumber: blockNumber,
+		TxSum:       txSum,
+		BoundAt:     boundAt.UnixNano() / 1e6,
 	}
 }
 

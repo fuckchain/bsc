@@ -122,7 +122,7 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 	// go peer.broadcastBlocks()
 	// go peer.broadcastTransactions()
 	// go peer.announceTransactions()
-	// go peer.dispatcher()
+	go peer.dispatcher()
 	return peer
 }
 

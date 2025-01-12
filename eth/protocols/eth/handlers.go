@@ -479,10 +479,7 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 		}
 		peer.markTransaction(tx.Hash())
 	}
-	peer.txSum += uint64(len(txs))
-	if len(txs) > 0 {
-		peer.lastTx = txs[len(txs)-1].Hash()
-	}
+	peer.receiveTxSum += uint64(len(txs))
 	return backend.Handle(peer, &txs)
 }
 

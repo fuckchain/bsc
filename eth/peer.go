@@ -36,7 +36,7 @@ type ethPeerInfo struct {
 	BlockNumber uint64   `json:"blockNumber"` // Block number of the peer's best owned block
 	BoundAt     int64    `json:"boundAt"`     // Time when the peer was bound
 	TxSum       uint64   `json:"txSum"`       // Total number of transactions
-	LastTx      string   `json:"lastTx"`      // Last transaction hash
+	SendTxSum   uint64   `json:"sendTxSum"`   // Total number of transactions sent
 }
 
 // ethPeer is a wrapper around eth.Peer to maintain a few extra metadata.
@@ -50,7 +50,7 @@ type ethPeer struct {
 // info gathers and returns some `eth` protocol metadata known about a peer.
 func (p *ethPeer) info() *ethPeerInfo {
 	hash, td := p.Head()
-	blockNumber, txSum, boundAt, lastTx := p.Stat()
+	blockNumber, txSum, sendTxSum, boundAt := p.Stat()
 
 	return &ethPeerInfo{
 		Version:     p.Version(),
@@ -58,8 +58,8 @@ func (p *ethPeer) info() *ethPeerInfo {
 		Head:        hash.String(),
 		BlockNumber: blockNumber,
 		TxSum:       txSum,
+		SendTxSum:   sendTxSum,
 		BoundAt:     boundAt.UnixNano() / 1e6,
-		LastTx:      lastTx.String(),
 	}
 }
 

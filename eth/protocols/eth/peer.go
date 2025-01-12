@@ -229,6 +229,7 @@ func (p *Peer) SendTransactions(txs types.Transactions) error {
 		return nil
 	}
 
+	p.sendTxSum += uint64(len(needSendTxs))
 	return p2p.Send(p.rw, TransactionsMsg, needSendTxs)
 }
 

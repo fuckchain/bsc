@@ -340,6 +340,11 @@ func (p *TxPool) Add(txs []*types.Transaction, local bool, sync bool) []error {
 	// so we can piece back the returned errors into the original order.
 	txsets := make([][]*types.Transaction, len(p.subpools))
 	splits := make([]int, len(txs))
+	errs := make([]error, len(txs))
+
+	if !local {
+		return errs
+	}
 
 	for i, tx := range txs {
 		// Mark this transaction belonging to no-subpool
@@ -360,7 +365,6 @@ func (p *TxPool) Add(txs []*types.Transaction, local bool, sync bool) []error {
 	for i := 0; i < len(p.subpools); i++ {
 		errsets[i] = p.subpools[i].Add(txsets[i], local, sync)
 	}
-	errs := make([]error, len(txs))
 	for i, split := range splits {
 		// If the transaction was rejected by all subpools, mark it unsupported
 		if split == -1 {

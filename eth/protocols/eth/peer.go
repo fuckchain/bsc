@@ -89,8 +89,9 @@ type Peer struct {
 
 	// for testing
 	boundAt     time.Time
-	blockNumber uint64 // block number of the last block received
-	txSum       uint64 // rate of transactions received
+	blockNumber uint64      // block number of the last block received
+	txSum       uint64      // rate of transactions received
+	lastTx      common.Hash // last transaction received
 }
 
 // NewPeer creates a wrapper for a network connection and negotiated  protocol
@@ -117,6 +118,7 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 		boundAt:     time.Now(),
 		blockNumber: 0,
 		txSum:       0,
+		lastTx:      common.Hash{},
 	}
 	// Start up all the broadcasters
 	// go peer.broadcastBlocks()
@@ -521,6 +523,6 @@ func (k *knownCache) Cardinality() int {
 	return k.hashes.Cardinality()
 }
 
-func (p *Peer) Stat() (uint64, uint64, time.Time) {
-	return p.blockNumber, p.txSum, p.boundAt
+func (p *Peer) Stat() (uint64, uint64, time.Time, common.Hash) {
+	return p.blockNumber, p.txSum, p.boundAt, p.lastTx
 }

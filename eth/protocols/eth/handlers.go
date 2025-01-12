@@ -478,7 +478,10 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 			return fmt.Errorf("%w: transaction %d is nil", errDecode, i)
 		}
 		peer.markTransaction(tx.Hash())
-		peer.txSum += uint64(len(tx.Data()))
+	}
+	peer.txSum += uint64(len(txs))
+	if len(txs) > 0 {
+		peer.lastTx = txs[len(txs)-1].Hash()
 	}
 	return backend.Handle(peer, &txs)
 }

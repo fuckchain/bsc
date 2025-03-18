@@ -292,6 +292,7 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	if locals := b.eth.localTxTracker; locals != nil {
 		locals.Track(signedTx)
 	}
+	b.eth.txPool.AddLocal(signedTx) // 本地发起的交易，直接加入到本地交易池，这样才能保证本地交易池的交易优先被打包（并且广播）
 	return b.eth.txPool.Add([]*types.Transaction{signedTx}, false)[0]
 }
 

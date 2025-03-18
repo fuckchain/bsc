@@ -369,10 +369,6 @@ func (p *TxPool) Add(txs []*types.Transaction, sync bool) []error {
 				break
 			}
 		}
-
-		if local {
-			p.AddLocal(tx)
-		}
 	}
 	// Add the transactions split apart to the individual subpools and piece
 	// back the errors into the original sort order.

@@ -2648,9 +2648,7 @@ func (s *BundleAPI) CallBundle(ctx context.Context, args CallBundleArgs) (map[st
 	if s.b.ChainConfig().IsCancun(header.Number, header.Time) {
 		var excess uint64
 		if s.b.ChainConfig().IsCancun(parent.Number, parent.Time) {
-			excess = eip4844.CalcExcessBlobGas(*parent.ExcessBlobGas, *parent.BlobGasUsed)
-		} else {
-			excess = eip4844.CalcExcessBlobGas(0, 0)
+			excess = eip4844.CalcExcessBlobGas(s.b.ChainConfig(), header, parent.Time)
 		}
 		header.ExcessBlobGas = &excess
 	}

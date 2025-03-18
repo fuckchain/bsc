@@ -213,6 +213,10 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		v := ctx.Uint64(utils.OverridePrague.Name)
 		cfg.Eth.OverridePrague = &v
 	}
+	if ctx.IsSet(utils.OverrideLorentz.Name) {
+		v := ctx.Uint64(utils.OverrideLorentz.Name)
+		cfg.Eth.OverrideLorentz = &v
+	}
 	if ctx.IsSet(utils.OverrideVerkle.Name) {
 		v := ctx.Uint64(utils.OverrideVerkle.Name)
 		cfg.Eth.OverrideVerkle = &v
@@ -316,7 +320,8 @@ func applyMetricConfig(ctx *cli.Context, cfg *gethConfig) {
 		cfg.Metrics.Enabled = ctx.Bool(utils.MetricsEnabledFlag.Name)
 	}
 	if ctx.IsSet(utils.MetricsEnabledExpensiveFlag.Name) {
-		log.Warn("Expensive metrics are collected by default, please remove this flag", "flag", utils.MetricsEnabledExpensiveFlag.Name)
+		log.Warn("Expensive metrics will remain in BSC and may be removed in the future", "flag", utils.MetricsEnabledExpensiveFlag.Name)
+		cfg.Metrics.EnabledExpensive = ctx.Bool(utils.MetricsEnabledExpensiveFlag.Name)
 	}
 	if ctx.IsSet(utils.MetricsHTTPFlag.Name) {
 		cfg.Metrics.HTTP = ctx.String(utils.MetricsHTTPFlag.Name)

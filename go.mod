@@ -27,7 +27,7 @@ require (
 	github.com/ethereum/go-verkle v0.2.2
 	github.com/fatih/color v1.16.0
 	github.com/fatih/structs v1.1.0
-	github.com/fjl/gencodec v0.0.0-20230517082657-f9840df7b83e
+	github.com/fjl/gencodec v0.1.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gballet/go-libpcsclite v0.0.0-20191108122812-4678299bea08
 	github.com/gofrs/flock v0.8.1
@@ -43,7 +43,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/holiman/billy v0.0.0-20240216141850-2abb0c79d3c4
 	github.com/holiman/bloomfilter/v2 v2.0.3
-	github.com/holiman/uint256 v1.3.1
+	github.com/holiman/uint256 v1.3.2
 	github.com/huin/goupnp v1.3.0
 	github.com/influxdata/influxdb-client-go/v2 v2.4.0
 	github.com/influxdata/influxdb1-client v0.0.0-20220302092344-a9ab5670611c
@@ -58,6 +58,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/panjf2000/ants/v2 v2.4.5
 	github.com/peterh/liner v1.2.0
+	github.com/pion/stun/v2 v2.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/tsdb v0.10.0
 	github.com/protolambda/bls12-381-util v0.1.0
@@ -68,7 +69,7 @@ require (
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/status-im/keycard-go v0.2.0
 	github.com/stretchr/testify v1.10.0
-	github.com/supranational/blst v0.3.13
+	github.com/supranational/blst v0.3.14
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/go-amino v0.14.1
 	github.com/tendermint/iavl v0.12.0
@@ -78,13 +79,13 @@ require (
 	github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4 v1.1.3
 	github.com/willf/bitset v1.1.3
 	go.uber.org/automaxprocs v1.5.2
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.32.0
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
 	golang.org/x/sync v0.10.0
-	golang.org/x/sys v0.28.0
+	golang.org/x/sys v0.29.0
 	golang.org/x/text v0.21.0
 	golang.org/x/time v0.5.0
-	golang.org/x/tools v0.28.0
+	golang.org/x/tools v0.29.0
 	google.golang.org/protobuf v1.36.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -133,7 +134,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/elastic/gosigar v0.14.3 // indirect
 	github.com/etcd-io/bbolt v1.3.3 // indirect
-	github.com/ferranbt/fastssz v0.0.0-20210905181407-59cf6761a7d5 // indirect
+	github.com/ferranbt/fastssz v0.0.0-20210120143747-11b9eff30ea9 // indirect
 	github.com/flynn/noise v1.1.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/garslo/gogen v0.0.0-20170306192744-1d203ffc1f61 // indirect
@@ -294,9 +295,9 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/net v0.33.0 // indirect
+	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/oauth2 v0.24.0 // indirect
-	golang.org/x/term v0.27.0 // indirect
+	golang.org/x/term v0.28.0 // indirect
 	google.golang.org/api v0.44.0 // indirect
 	google.golang.org/genproto v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20231012201019-e917dd12ba7a // indirect
@@ -316,6 +317,5 @@ require (
 
 replace (
 	github.com/cometbft/cometbft => github.com/bnb-chain/greenfield-cometbft v1.3.1
-	github.com/grpc-ecosystem/grpc-gateway/v2 => github.com/prysmaticlabs/grpc-gateway/v2 v2.3.1-0.20210702154020-550e1cd83ec1
 	github.com/tendermint/tendermint => github.com/bnb-chain/tendermint v0.31.16
 )

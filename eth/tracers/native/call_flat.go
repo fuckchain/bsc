@@ -1,4 +1,4 @@
-// Copyright 2022 The go-ethereum Authors
+// Copyright 2023 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -144,10 +144,11 @@ func newFlatCallTracer(ctx *tracers.Context, cfg json.RawMessage, chainConfig *p
 	ft := &flatCallTracer{tracer: t, ctx: ctx, config: config, chainConfig: chainConfig}
 	return &tracers.Tracer{
 		Hooks: &tracing.Hooks{
-			OnTxStart: ft.OnTxStart,
-			OnTxEnd:   ft.OnTxEnd,
-			OnEnter:   ft.OnEnter,
-			OnExit:    ft.OnExit,
+			OnTxStart:                 ft.OnTxStart,
+			OnTxEnd:                   ft.OnTxEnd,
+			OnEnter:                   ft.OnEnter,
+			OnExit:                    ft.OnExit,
+			OnSystemTxFixIntrinsicGas: ft.OnSystemTxFixIntrinsicGas,
 		},
 		Stop:      ft.Stop,
 		GetResult: ft.GetResult,

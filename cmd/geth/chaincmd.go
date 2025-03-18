@@ -64,6 +64,7 @@ var (
 			utils.OverridePassedForkTime,
 			utils.OverridePascal,
 			utils.OverridePrague,
+			utils.OverrideLorentz,
 			utils.OverrideVerkle,
 			utils.MultiDataBaseFlag,
 		}, utils.DatabaseFlags),
@@ -268,6 +269,10 @@ func initGenesis(ctx *cli.Context) error {
 		v := ctx.Uint64(utils.OverridePrague.Name)
 		overrides.OverridePrague = &v
 	}
+	if ctx.IsSet(utils.OverrideLorentz.Name) {
+		v := ctx.Uint64(utils.OverrideLorentz.Name)
+		overrides.OverrideLorentz = &v
+	}
 	if ctx.IsSet(utils.OverrideVerkle.Name) {
 		v := ctx.Uint64(utils.OverrideVerkle.Name)
 		overrides.OverrideVerkle = &v
@@ -297,7 +302,7 @@ func initGenesis(ctx *cli.Context) error {
 	triedb := utils.MakeTrieDatabase(ctx, stack, chaindb, ctx.Bool(utils.CachePreimagesFlag.Name), false, genesis.IsVerkle())
 	defer triedb.Close()
 
-	_, hash, err := core.SetupGenesisBlockWithOverride(chaindb, triedb, genesis, &overrides)
+	_, hash, _, err := core.SetupGenesisBlockWithOverride(chaindb, triedb, genesis, &overrides)
 	if err != nil {
 		utils.Fatalf("Failed to write genesis block: %v", err)
 	}

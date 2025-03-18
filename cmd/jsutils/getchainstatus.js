@@ -6,6 +6,7 @@ program.option("--startNum <startNum>", "start num")
 program.option("--endNum <endNum>", "end num")
 program.option("--miner <miner>", "miner", "")
 program.option("--num <Num>", "validator num", 21)
+program.option("--turnLength <Num>", "the consecutive block length", 4)
 program.option("--topNum <Num>", "top num of address to be displayed", 20)
 program.option("--blockNum <Num>", "block num", 0)
 program.option("-h, --help", "")
@@ -34,13 +35,14 @@ function printUsage() {
     console.log("\nExample:");
     // mainnet https://bsc-mainnet.nodereal.io/v1/454e504917db4f82b756bd0cf6317dce
     console.log("  node getchainstatus.js GetMaxTxCountInBlockRange --rpc https://bsc-testnet-dataseed.bnbchain.org --startNum 40000001  --endNum 40000005")
-    console.log("  node getchainstatus.js GetBinaryVersion --rpc https://bsc-testnet-dataseed.bnbchain.org --num 21")
+    console.log("  node getchainstatus.js GetBinaryVersion --rpc https://bsc-testnet-dataseed.bnbchain.org --num 21 --turnLength 4")
     console.log("  node getchainstatus.js GetTopAddr --rpc https://bsc-testnet-dataseed.bnbchain.org --startNum 40000001  --endNum 40000010 --topNum 10")
     console.log("  node getchainstatus.js GetSlashCount --rpc https://bsc-testnet-dataseed.bnbchain.org --blockNum 40000001")  // default: latest block
     console.log("  node getchainstatus.js GetPerformanceData --rpc https://bsc-testnet-dataseed.bnbchain.org --startNum 40000001  --endNum 40000010")
     console.log("  node getchainstatus.js GetBlobTxs --rpc https://bsc-testnet-dataseed.bnbchain.org --startNum 40000001  --endNum 40000010")
     console.log("  node getchainstatus.js GetFaucetStatus --rpc https://bsc-testnet-dataseed.bnbchain.org --startNum 40000001  --endNum 40000010")
     console.log("  node getchainstatus.js GetKeyParameters --rpc https://bsc-testnet-dataseed.bnbchain.org") // default: latest block
+    console.log("  node getchainstatus.js GetEip7623 --rpc https://bsc-testnet-dataseed.bnbchain.org --startNum 40000001  --endNum 40000010")
 }
 
 program.usage = printUsage;
@@ -192,12 +194,13 @@ async function getMaxTxCountInBlockRange()  {
 // 2.cmd: "GetBinaryVersion", usage:
 // node getchainstatus.js GetBinaryVersion \
 //      --rpc https://bsc-testnet-dataseed.bnbchain.org \
-//       --num(optional): defualt 21, the number of blocks that will be checked
+//       --num(optional): default 21, the number of blocks that will be checked
+//       --turnLength(optional): default 4, the consecutive block length
 async function getBinaryVersion()  {
     const blockNum = await provider.getBlockNumber();
-    console.log(blockNum);
+    let turnLength = program.turnLength
     for (let i = 0; i < program.num; i++) {
-        let blockData = await provider.getBlock(blockNum - i);
+        let blockData = await provider.getBlock(blockNum - i*turnLength);
         // 1.get Geth client version
         let major = ethers.toNumber(ethers.dataSlice(blockData.extraData, 2, 3))
         let minor = ethers.toNumber(ethers.dataSlice(blockData.extraData, 3, 4))
@@ -214,7 +217,8 @@ async function getBinaryVersion()  {
             lastGasPrice = txData.gasPrice
             break
         }
-        console.log(blockData.miner, "version =", major + "." + minor + "." + patch, " MinGasPrice = " + lastGasPrice)
+        var moniker = await getValidatorMoniker(blockData.miner, blockNum)
+        console.log(blockNum - i*turnLength, blockData.miner, "version =", major + "." + minor + "." + patch, " MinGasPrice = " + lastGasPrice, moniker)
     }
 };
 
@@ -301,7 +305,7 @@ async function getSlashCount()  {
                 let isMaintaining = validatorExtra[1]
                 // let voteAddress = validatorExtra[2]
                 if (isMaintaining) {
-                    let jailHeight = (felonyThreshold - slashCount) * slashScale * maxElected + BigInt(enterMaintenanceHeight)
+                    let jailHeight = (felonyThreshold - BigInt(slashCount)) * slashScale * maxElected + BigInt(enterMaintenanceHeight)
                     console.log("          in maintenance mode since", enterMaintenanceHeight, "will jail after", ethers.toNumber(jailHeight))    
                 } else {
                     console.log("          exited maintenance mode")
@@ -493,7 +497,58 @@ async function getKeyParameters()  {
     }
     validatorTable.sort((a, b) => b.votingPower - a.votingPower);
     console.table(validatorTable)
-};
+}
+
+// 9.cmd: "getEip7623", usage:
+// node getEip7623.js GetEip7623 \
+//      --rpc https://bsc-testnet-dataseed.bnbchain.org \
+//      --startNum 40000001  --endNum 40000005
+async function getEip7623()  {
+    var startBlock = parseInt(program.startNum)
+    var endBlock = parseInt(program.endNum)
+    if (isNaN(endBlock) || isNaN(startBlock) || startBlock === 0) {
+        console.error("invalid input, --startNum", program.startNum, "--end", program.endNum)
+        return
+    }
+    // if --endNum is not specified, set it to the latest block number.
+    if (endBlock === 0) {
+        endBlock = await provider.getBlockNumber();
+    }
+    if (startBlock > endBlock) {
+        console.error("invalid input, startBlock:",startBlock, " endBlock:", endBlock);
+        return
+    }
+
+    const startTime = Date.now();
+
+    const TOTAL_COST_FLOOR_PER_TOKEN = 10
+    const intrinsicGas = 21000
+    for (let blockNumber = startBlock; blockNumber <= endBlock; blockNumber++) {
+        const block = await provider.getBlock(blockNumber, true);
+
+        for (let txHash of block.transactions) {
+            let tx = block.getPrefetchedTransaction(txHash)
+            const receipt = await provider.getTransactionReceipt(tx.hash);
+            let tokens_in_calldata = -4; // means '0x'
+            let calldata = tx.data;
+            for (let i = 0; i < calldata.length; i += 2) {
+                const byte = parseInt(calldata.substr(i, 2), 16);
+                if (byte === 0) {
+                    tokens_in_calldata++;
+                } else {
+                    tokens_in_calldata = tokens_in_calldata + 4;
+                }
+            }
+            let  want = TOTAL_COST_FLOOR_PER_TOKEN  * tokens_in_calldata + intrinsicGas
+            if (want > receipt.gasUsed) {
+                console.log("Cost more gas, blockNum:", tx.blockNumber, "txHash", tx.hash, " gasUsed", receipt.gasUsed.toString(), " New GasUsed", want)
+            }
+        }
+    }
+    const endTime = Date.now();
+    const duration = (endTime - startTime) / 1000;
+    console.log(`Script executed in: ${duration} seconds`);
+}
 
 const main = async () => {
     if (process.argv.length <= 2) {
@@ -522,6 +577,8 @@ const main = async () => {
         await getFaucetStatus()
     } else if (cmd === "GetKeyParameters") {
         await getKeyParameters()
+    } else if (cmd === "GetEip7623"){
+        await getEip7623()
     } else {
         console.log("unsupported cmd", cmd);
         printUsage()

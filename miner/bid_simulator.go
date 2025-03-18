@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/bidutil"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/parlia"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -582,7 +583,9 @@ func (b *bidSimulator) simBid(interruptCh chan int32, bidRuntime *BidRuntime) {
 	gasLimit := bidRuntime.env.header.GasLimit
 	if bidRuntime.env.gasPool == nil {
 		bidRuntime.env.gasPool = new(core.GasPool).AddGas(gasLimit)
-		bidRuntime.env.gasPool.SubGas(params.SystemTxsGas)
+		if p, ok := b.engine.(*parlia.Parlia); ok {
+			bidRuntime.env.gasPool.SubGas(p.EstimateGasReservedForSystemTxs(b.chain, bidRuntime.env.header))
+		}
 		bidRuntime.env.gasPool.SubGas(params.PayBidTxGasLimit)
 	}
 
@@ -841,7 +844,7 @@ func (r *BidRuntime) commitTransaction(chain *core.BlockChain, chainConfig *para
 		// isn't really a better place right now. The blob gas limit is checked at block validation time
 		// and not during execution. This means core.ApplyTransaction will not return an error if the
 		// tx has too many blobs. So we have to explicitly check it here.
-		if (env.blobs+len(sc.Blobs))*params.BlobTxBlobGasPerBlob > params.MaxBlobGasPerBlock {
+		if (env.blobs + len(sc.Blobs)) > params.MaxBlobsPerBlockForBSC {
 			return errors.New("max data blobs reached")
 		}
 	}

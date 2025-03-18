@@ -834,7 +834,7 @@ func (diff *StateOverride) Apply(statedb *state.StateDB, precompiles vm.Precompi
 		}
 		// Override account nonce.
 		if account.Nonce != nil {
-			statedb.SetNonce(addr, uint64(*account.Nonce))
+			statedb.SetNonce(addr, uint64(*account.Nonce), tracing.NonceChangeUnspecified)
 		}
 		// Override account(contract) code.
 		if account.Code != nil {
@@ -946,6 +946,7 @@ func (o *BlockOverrides) MakeHeader(header *types.Header) *types.Header {
 type ChainContextBackend interface {
 	Engine() consensus.Engine
 	HeaderByNumber(context.Context, rpc.BlockNumber) (*types.Header, error)
+	ChainConfig() *params.ChainConfig
 }
 
 // ChainContext is an implementation of core.ChainContext. It's main use-case
@@ -972,6 +973,10 @@ func (context *ChainContext) GetHeader(hash common.Hash, number uint64) *types.H
 		return nil
 	}
 	return header
+}
+
+func (context *ChainContext) Config() *params.ChainConfig {
+	return context.b.ChainConfig()
 }
 
 func doCall(ctx context.Context, b Backend, args TransactionArgs, state *state.StateDB, header *types.Header, overrides *override.StateOverride, blockOverrides *override.BlockOverrides, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
@@ -1392,7 +1397,7 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 		result["parentBeaconBlockRoot"] = head.ParentBeaconRoot
 	}
 	if head.RequestsHash != nil {
-		result["requestsRoot"] = head.RequestsHash
+		result["requestsHash"] = head.RequestsHash
 	}
 	return result
 }
@@ -1452,29 +1457,29 @@ func (api *BlockChainAPI) rpcMarshalBlock(ctx context.Context, b *types.Block, i
 
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
-	BlockHash           *common.Hash          `json:"blockHash"`
-	BlockNumber         *hexutil.Big          `json:"blockNumber"`
-	From                common.Address        `json:"from"`
-	Gas                 hexutil.Uint64        `json:"gas"`
-	GasPrice            *hexutil.Big          `json:"gasPrice"`
-	GasFeeCap           *hexutil.Big          `json:"maxFeePerGas,omitempty"`
-	GasTipCap           *hexutil.Big          `json:"maxPriorityFeePerGas,omitempty"`
-	MaxFeePerBlobGas    *hexutil.Big          `json:"maxFeePerBlobGas,omitempty"`
-	Hash                common.Hash           `json:"hash"`
-	Input               hexutil.Bytes         `json:"input"`
-	Nonce               hexutil.Uint64        `json:"nonce"`
-	To                  *common.Address       `json:"to"`
-	TransactionIndex    *hexutil.Uint64       `json:"transactionIndex"`
-	Value               *hexutil.Big          `json:"value"`
-	Type                hexutil.Uint64        `json:"type"`
-	Accesses            *types.AccessList     `json:"accessList,omitempty"`
-	ChainID             *hexutil.Big          `json:"chainId,omitempty"`
-	BlobVersionedHashes []common.Hash         `json:"blobVersionedHashes,omitempty"`
-	AuthorizationList   []types.Authorization `json:"authorizationList,omitempty"`
-	V                   *hexutil.Big          `json:"v"`
-	R                   *hexutil.Big          `json:"r"`
-	S                   *hexutil.Big          `json:"s"`
-	YParity             *hexutil.Uint64       `json:"yParity,omitempty"`
+	BlockHash           *common.Hash                 `json:"blockHash"`
+	BlockNumber         *hexutil.Big                 `json:"blockNumber"`
+	From                common.Address               `json:"from"`
+	Gas                 hexutil.Uint64               `json:"gas"`
+	GasPrice            *hexutil.Big                 `json:"gasPrice"`
+	GasFeeCap           *hexutil.Big                 `json:"maxFeePerGas,omitempty"`
+	GasTipCap           *hexutil.Big                 `json:"maxPriorityFeePerGas,omitempty"`
+	MaxFeePerBlobGas    *hexutil.Big                 `json:"maxFeePerBlobGas,omitempty"`
+	Hash                common.Hash                  `json:"hash"`
+	Input               hexutil.Bytes                `json:"input"`
+	Nonce               hexutil.Uint64               `json:"nonce"`
+	To                  *common.Address              `json:"to"`
+	TransactionIndex    *hexutil.Uint64              `json:"transactionIndex"`
+	Value               *hexutil.Big                 `json:"value"`
+	Type                hexutil.Uint64               `json:"type"`
+	Accesses            *types.AccessList            `json:"accessList,omitempty"`
+	ChainID             *hexutil.Big                 `json:"chainId,omitempty"`
+	BlobVersionedHashes []common.Hash                `json:"blobVersionedHashes,omitempty"`
+	AuthorizationList   []types.SetCodeAuthorization `json:"authorizationList,omitempty"`
+	V                   *hexutil.Big                 `json:"v"`
+	R                   *hexutil.Big                 `json:"r"`
+	S                   *hexutil.Big                 `json:"s"`
+	YParity             *hexutil.Uint64              `json:"yParity,omitempty"`
 }
 
 // newRPCTransaction returns a transaction that will serialize to the RPC
@@ -1564,7 +1569,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		} else {
 			result.GasPrice = (*hexutil.Big)(tx.GasFeeCap())
 		}
-		result.AuthorizationList = tx.AuthList()
+		result.AuthorizationList = tx.SetCodeAuthorizations()
 	}
 	return result
 }
@@ -2367,7 +2372,7 @@ func (api *DebugAPI) GetRawHeader(ctx context.Context, blockNrOrHash rpc.BlockNu
 		hash = h
 	} else {
 		block, err := api.b.BlockByNumberOrHash(ctx, blockNrOrHash)
-		if err != nil {
+		if block == nil || err != nil {
 			return nil, err
 		}
 		hash = block.Hash()
@@ -2386,7 +2391,7 @@ func (api *DebugAPI) GetRawBlock(ctx context.Context, blockNrOrHash rpc.BlockNum
 		hash = h
 	} else {
 		block, err := api.b.BlockByNumberOrHash(ctx, blockNrOrHash)
-		if err != nil {
+		if block == nil || err != nil {
 			return nil, err
 		}
 		hash = block.Hash()
@@ -2405,7 +2410,7 @@ func (api *DebugAPI) GetRawReceipts(ctx context.Context, blockNrOrHash rpc.Block
 		hash = h
 	} else {
 		block, err := api.b.BlockByNumberOrHash(ctx, blockNrOrHash)
-		if err != nil {
+		if block == nil || err != nil {
 			return nil, err
 		}
 		hash = block.Hash()

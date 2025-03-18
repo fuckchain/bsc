@@ -17,6 +17,7 @@
 package params
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -62,6 +63,9 @@ var (
 		CancunTime:              newUint64(1710338135),
 		DepositContractAddress:  common.HexToAddress("0x00000000219ab540356cbb839cbe05303d7705fa"),
 		Ethash:                  new(EthashConfig),
+		BlobScheduleConfig: &BlobScheduleConfig{
+			Cancun: DefaultCancunBlobConfig,
+		},
 	}
 	// HoleskyChainConfig contains the chain parameters to run a node on the Holesky test network.
 	HoleskyChainConfig = &ChainConfig{
@@ -85,7 +89,12 @@ var (
 		MergeNetsplitBlock:      nil,
 		ShanghaiTime:            newUint64(1696000704),
 		CancunTime:              newUint64(1707305664),
+		PragueTime:              newUint64(1740434112),
 		Ethash:                  new(EthashConfig),
+		BlobScheduleConfig: &BlobScheduleConfig{
+			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfig,
+		},
 	}
 	// SepoliaChainConfig contains the chain parameters to run a node on the Sepolia test network.
 	SepoliaChainConfig = &ChainConfig{
@@ -109,7 +118,12 @@ var (
 		MergeNetsplitBlock:      big.NewInt(1735371),
 		ShanghaiTime:            newUint64(1677557088),
 		CancunTime:              newUint64(1706655072),
+		PragueTime:              newUint64(1741159776),
 		Ethash:                  new(EthashConfig),
+		BlobScheduleConfig: &BlobScheduleConfig{
+			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfig,
+		},
 	}
 
 	// just for prysm compile pass
@@ -173,13 +187,17 @@ var (
 		HaberTime:           newUint64(1718863500), // 2024-06-20 06:05:00 AM UTC
 		HaberFixTime:        newUint64(1727316120), // 2024-09-26 02:02:00 AM UTC
 		BohrTime:            newUint64(1727317200), // 2024-09-26 02:20:00 AM UTC
-		// TODO
-		PascalTime: nil,
-		PragueTime: nil,
+		PascalTime:          newUint64(1742436600),
+		PragueTime:          newUint64(1742436600),
+		LorentzTime:         nil,
 
 		Parlia: &ParliaConfig{
 			Period: 3,
 			Epoch:  200,
+		},
+		BlobScheduleConfig: &BlobScheduleConfig{
+			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfigBSC,
 		},
 	}
 
@@ -217,13 +235,18 @@ var (
 		HaberTime:           newUint64(1716962820), // 2024-05-29 06:07:00 AM UTC
 		HaberFixTime:        newUint64(1719986788), // 2024-07-03 06:06:28 AM UTC
 		BohrTime:            newUint64(1724116996), // 2024-08-20 01:23:16 AM UTC
+		PascalTime:          newUint64(1740452880), // 2025-02-25 03:08:00 AM UTC
+		PragueTime:          newUint64(1740452880), // 2025-02-25 03:08:00 AM UTC
 		// TODO
-		PascalTime: nil,
-		PragueTime: nil,
+		LorentzTime: nil,
 
 		Parlia: &ParliaConfig{
 			Period: 3,
 			Epoch:  200,
+		},
+		BlobScheduleConfig: &BlobScheduleConfig{
+			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfigBSC,
 		},
 	}
 
@@ -263,12 +286,17 @@ var (
 		HaberFixTime:        newUint64(0),
 		BohrTime:            newUint64(0),
 		// TODO: set them to `0` when passed on the mainnet
-		PascalTime: nil,
-		PragueTime: nil,
+		PascalTime:  nil,
+		PragueTime:  nil,
+		LorentzTime: nil,
 
 		Parlia: &ParliaConfig{
 			Period: 3,
 			Epoch:  200,
+		},
+		BlobScheduleConfig: &BlobScheduleConfig{
+			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfigBSC,
 		},
 	}
 
@@ -308,6 +336,9 @@ var (
 			Period: 3,
 			Epoch:  200,
 		},
+		BlobScheduleConfig: &BlobScheduleConfig{
+			Cancun: DefaultCancunBlobConfig,
+		},
 	}
 
 	// AllEthashProtocolChanges contains every protocol change (EIPs) introduced
@@ -334,6 +365,7 @@ var (
 		ShanghaiTime:            nil,
 		CancunTime:              nil,
 		PragueTime:              nil,
+		OsakaTime:               nil,
 		VerkleTime:              nil,
 		Ethash:                  new(EthashConfig),
 		Clique:                  nil,
@@ -358,6 +390,10 @@ var (
 		CancunTime:              newUint64(0),
 		TerminalTotalDifficulty: big.NewInt(0),
 		PragueTime:              newUint64(0),
+		BlobScheduleConfig: &BlobScheduleConfig{
+			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfig,
+		},
 	}
 
 	// AllCliqueProtocolChanges contains every protocol change (EIPs) introduced
@@ -383,6 +419,7 @@ var (
 		ShanghaiTime:            nil,
 		CancunTime:              nil,
 		PragueTime:              nil,
+		OsakaTime:               nil,
 		VerkleTime:              nil,
 		TerminalTotalDifficulty: big.NewInt(math.MaxInt64),
 		Ethash:                  nil,
@@ -412,6 +449,7 @@ var (
 		ShanghaiTime:            nil,
 		CancunTime:              nil,
 		PragueTime:              nil,
+		OsakaTime:               nil,
 		VerkleTime:              nil,
 		TerminalTotalDifficulty: big.NewInt(math.MaxInt64),
 		Ethash:                  new(EthashConfig),
@@ -441,10 +479,15 @@ var (
 		ShanghaiTime:            newUint64(0),
 		CancunTime:              newUint64(0),
 		PragueTime:              newUint64(0),
+		OsakaTime:               nil,
 		VerkleTime:              nil,
 		TerminalTotalDifficulty: big.NewInt(0),
 		Ethash:                  new(EthashConfig),
 		Clique:                  nil,
+		BlobScheduleConfig: &BlobScheduleConfig{
+			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfig,
+		},
 	}
 
 	// NonActivatedConfig defines the chain configuration without activating
@@ -470,6 +513,7 @@ var (
 		ShanghaiTime:            nil,
 		CancunTime:              nil,
 		PragueTime:              nil,
+		OsakaTime:               nil,
 		VerkleTime:              nil,
 		TerminalTotalDifficulty: big.NewInt(math.MaxInt64),
 		Ethash:                  new(EthashConfig),
@@ -492,6 +536,30 @@ func GetBuiltInChainConfig(ghash common.Hash) *ChainConfig {
 		return nil
 	}
 }
+
+var (
+	// DefaultCancunBlobConfig is the default blob configuration for the Cancun fork.
+	DefaultCancunBlobConfig = &BlobConfig{
+		Target:         3,
+		Max:            6,
+		UpdateFraction: 3338477,
+	}
+	// DefaultPragueBlobConfig is the default blob configuration for the Prague fork.
+	DefaultPragueBlobConfig = &BlobConfig{
+		Target:         6,
+		Max:            9,
+		UpdateFraction: 5007716,
+	}
+	// DefaultBlobSchedule is the latest configured blob schedule for test chains.
+	DefaultBlobSchedule = &BlobScheduleConfig{
+		Cancun: DefaultCancunBlobConfig,
+		Prague: DefaultPragueBlobConfig,
+	}
+
+	DefaultPragueBlobConfigBSC = DefaultCancunBlobConfig
+	// for bsc, only DefaultCancunBlobConfig is used, so we can define MaxBlobsPerBlockForBSC more directly
+	MaxBlobsPerBlockForBSC = DefaultCancunBlobConfig.Max
+)
 
 // NetworkNames are user friendly names to use in the chain spec banner.
 var NetworkNames = map[string]string{
@@ -544,6 +612,8 @@ type ChainConfig struct {
 	BohrTime       *uint64 `json:"bohrTime,omitempty"`       // Bohr switch time (nil = no fork, 0 = already on bohr)
 	PascalTime     *uint64 `json:"pascalTime,omitempty"`     // Pascal switch time (nil = no fork, 0 = already on pascal)
 	PragueTime     *uint64 `json:"pragueTime,omitempty"`     // Prague switch time (nil = no fork, 0 = already on prague)
+	OsakaTime      *uint64 `json:"osakaTime,omitempty"`      // Osaka switch time (nil = no fork, 0 = already on osaka)
+	LorentzTime    *uint64 `json:"lorentzTime,omitempty"`    // Lorentz switch time (nil = no fork, 0 = already on lorentz)
 	VerkleTime     *uint64 `json:"verkleTime,omitempty"`     // Verkle switch time (nil = no fork, 0 = already on verkle)
 
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
@@ -554,6 +624,19 @@ type ChainConfig struct {
 	TerminalTotalDifficultyPassed bool `json:"terminalTotalDifficultyPassed,omitempty"`
 
 	DepositContractAddress common.Address `json:"depositContractAddress,omitempty"`
+
+	// EnableVerkleAtGenesis is a flag that specifies whether the network uses
+	// the Verkle tree starting from the genesis block. If set to true, the
+	// genesis state will be committed using the Verkle tree, eliminating the
+	// need for any Verkle transition later.
+	//
+	// This is a temporary flag only for verkle devnet testing, where verkle is
+	// activated at genesis, and the configured activation date has already passed.
+	//
+	// In production networks (mainnet and public testnets), verkle activation
+	// always occurs after the genesis block, making this flag irrelevant in
+	// those cases.
+	EnableVerkleAtGenesis bool `json:"enableVerkleAtGenesis,omitempty"`
 
 	RamanujanBlock  *big.Int `json:"ramanujanBlock,omitempty"`  // ramanujanBlock switch block (nil = no fork, 0 = already activated)
 	NielsBlock      *big.Int `json:"nielsBlock,omitempty"`      // nielsBlock switch block (nil = no fork, 0 = already activated)
@@ -570,9 +653,10 @@ type ChainConfig struct {
 	HertzfixBlock   *big.Int `json:"hertzfixBlock,omitempty"`   // hertzfixBlock switch block (nil = no fork, 0 = already activated)
 
 	// Various consensus engines
-	Ethash *EthashConfig `json:"ethash,omitempty"`
-	Clique *CliqueConfig `json:"clique,omitempty"`
-	Parlia *ParliaConfig `json:"parlia,omitempty"`
+	Ethash             *EthashConfig       `json:"ethash,omitempty"`
+	Clique             *CliqueConfig       `json:"clique,omitempty"`
+	Parlia             *ParliaConfig       `json:"parlia,omitempty"`
+	BlobScheduleConfig *BlobScheduleConfig `json:"blobSchedule,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -693,7 +777,12 @@ func (c *ChainConfig) String() string {
 		PragueTime = big.NewInt(0).SetUint64(*c.PragueTime)
 	}
 
-	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v Constantinople: %v Petersburg: %v Istanbul: %v, Muir Glacier: %v, Ramanujan: %v, Niels: %v, MirrorSync: %v, Bruno: %v, Berlin: %v, YOLO v3: %v, CatalystBlock: %v, London: %v, ArrowGlacier: %v, MergeFork:%v, Euler: %v, Gibbs: %v, Nano: %v, Moran: %v, Planck: %v,Luban: %v, Plato: %v, Hertz: %v, Hertzfix: %v, ShanghaiTime: %v, KeplerTime: %v, FeynmanTime: %v, FeynmanFixTime: %v, CancunTime: %v, HaberTime: %v, HaberFixTime: %v, BohrTime: %v, PascalTime: %v, PragueTime: %v, Engine: %v}",
+	var LorentzTime *big.Int
+	if c.LorentzTime != nil {
+		LorentzTime = big.NewInt(0).SetUint64(*c.LorentzTime)
+	}
+
+	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v Constantinople: %v Petersburg: %v Istanbul: %v, Muir Glacier: %v, Ramanujan: %v, Niels: %v, MirrorSync: %v, Bruno: %v, Berlin: %v, YOLO v3: %v, CatalystBlock: %v, London: %v, ArrowGlacier: %v, MergeFork:%v, Euler: %v, Gibbs: %v, Nano: %v, Moran: %v, Planck: %v,Luban: %v, Plato: %v, Hertz: %v, Hertzfix: %v ShanghaiTime: %v, KeplerTime: %v, FeynmanTime: %v, FeynmanFixTime: %v, CancunTime: %v, HaberTime: %v, HaberFixTime: %v, BohrTime: %v, PascalTime: %v, PragueTime: %v, LorentzTime: %v, Engine: %v}",
 		c.ChainID,
 		c.HomesteadBlock,
 		c.DAOForkBlock,
@@ -735,8 +824,23 @@ func (c *ChainConfig) String() string {
 		BohrTime,
 		PascalTime,
 		PragueTime,
+		LorentzTime,
 		engine,
 	)
+}
+
+// BlobConfig specifies the target and max blobs per block for the associated fork.
+type BlobConfig struct {
+	Target         int    `json:"target"`
+	Max            int    `json:"max"`
+	UpdateFraction uint64 `json:"baseFeeUpdateFraction"`
+}
+
+// BlobScheduleConfig determines target and max number of blobs allow per fork.
+type BlobScheduleConfig struct {
+	Cancun *BlobConfig `json:"cancun,omitempty"`
+	Prague *BlobConfig `json:"prague,omitempty"`
+	Verkle *BlobConfig `json:"verkle,omitempty"`
 }
 
 // IsHomestead returns whether num is either equal to the homestead block or greater.
@@ -1063,9 +1167,42 @@ func (c *ChainConfig) IsOnPrague(currentBlockNumber *big.Int, lastBlockTime uint
 	return !c.IsPrague(lastBlockNumber, lastBlockTime) && c.IsPrague(currentBlockNumber, currentBlockTime)
 }
 
+// IsLorentz returns whether time is either equal to the Lorentz fork time or greater.
+func (c *ChainConfig) IsLorentz(num *big.Int, time uint64) bool {
+	return c.IsLondon(num) && isTimestampForked(c.LorentzTime, time)
+}
+
+// IsOnLorentz returns whether currentBlockTime is either equal to the Lorentz fork time or greater firstly.
+func (c *ChainConfig) IsOnLorentz(currentBlockNumber *big.Int, lastBlockTime uint64, currentBlockTime uint64) bool {
+	lastBlockNumber := new(big.Int)
+	if currentBlockNumber.Cmp(big.NewInt(1)) >= 0 {
+		lastBlockNumber.Sub(currentBlockNumber, big.NewInt(1))
+	}
+	return !c.IsLorentz(lastBlockNumber, lastBlockTime) && c.IsLorentz(currentBlockNumber, currentBlockTime)
+}
+
+// IsOsaka returns whether time is either equal to the Osaka fork time or greater.
+func (c *ChainConfig) IsOsaka(num *big.Int, time uint64) bool {
+	return c.IsLondon(num) && isTimestampForked(c.OsakaTime, time)
+}
+
 // IsVerkle returns whether time is either equal to the Verkle fork time or greater.
 func (c *ChainConfig) IsVerkle(num *big.Int, time uint64) bool {
 	return c.IsLondon(num) && isTimestampForked(c.VerkleTime, time)
+}
+
+// IsVerkleGenesis checks whether the verkle fork is activated at the genesis block.
+//
+// Verkle mode is considered enabled if the verkle fork time is configured,
+// regardless of whether the local time has surpassed the fork activation time.
+// This is a temporary workaround for verkle devnet testing, where verkle is
+// activated at genesis, and the configured activation date has already passed.
+//
+// In production networks (mainnet and public testnets), verkle activation
+// always occurs after the genesis block, making this function irrelevant in
+// those cases.
+func (c *ChainConfig) IsVerkleGenesis() bool {
+	return c.EnableVerkleAtGenesis
 }
 
 // IsEIP4762 returns whether eip 4762 has been activated at given block.
@@ -1131,6 +1268,8 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 		{name: "bohrTime", timestamp: c.BohrTime},
 		{name: "pascalTime", timestamp: c.PascalTime},
 		{name: "pragueTime", timestamp: c.PragueTime},
+		{name: "osakaTime", timestamp: c.OsakaTime, optional: true},
+		{name: "lorentzTime", timestamp: c.LorentzTime},
 		{name: "verkleTime", timestamp: c.VerkleTime, optional: true},
 	} {
 		if lastFork.name != "" {
@@ -1166,6 +1305,45 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 		if !cur.optional || (cur.block != nil || cur.timestamp != nil) {
 			lastFork = cur
 		}
+	}
+
+	// Check that all forks with blobs explicitly define the blob schedule configuration.
+	bsc := c.BlobScheduleConfig
+	if bsc == nil {
+		bsc = new(BlobScheduleConfig)
+	}
+	for _, cur := range []struct {
+		name      string
+		timestamp *uint64
+		config    *BlobConfig
+	}{
+		{name: "cancun", timestamp: c.CancunTime, config: bsc.Cancun},
+		{name: "prague", timestamp: c.PragueTime, config: bsc.Prague},
+	} {
+		if cur.config != nil {
+			if err := cur.config.validate(); err != nil {
+				return fmt.Errorf("invalid chain configuration in blobSchedule for fork %q: %v", cur.name, err)
+			}
+		}
+		if cur.timestamp != nil {
+			// If the fork is configured, a blob schedule must be defined for it.
+			if cur.config == nil {
+				return fmt.Errorf("invalid chain configuration: missing entry for fork %q in blobSchedule", cur.name)
+			}
+		}
+	}
+	return nil
+}
+
+func (bc *BlobConfig) validate() error {
+	if bc.Max < 0 {
+		return errors.New("max < 0")
+	}
+	if bc.Target < 0 {
+		return errors.New("target < 0")
+	}
+	if bc.UpdateFraction == 0 {
+		return errors.New("update fraction must be defined and non-zero")
 	}
 	return nil
 }
@@ -1292,6 +1470,12 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 	if isForkTimestampIncompatible(c.PragueTime, newcfg.PragueTime, headTimestamp) {
 		return newTimestampCompatError("Prague fork timestamp", c.PragueTime, newcfg.PragueTime)
 	}
+	if isForkTimestampIncompatible(c.OsakaTime, newcfg.OsakaTime, headTimestamp) {
+		return newTimestampCompatError("Osaka fork timestamp", c.OsakaTime, newcfg.OsakaTime)
+	}
+	if isForkTimestampIncompatible(c.LorentzTime, newcfg.LorentzTime, headTimestamp) {
+		return newTimestampCompatError("Lorentz fork timestamp", c.LorentzTime, newcfg.LorentzTime)
+	}
 	if isForkTimestampIncompatible(c.VerkleTime, newcfg.VerkleTime, headTimestamp) {
 		return newTimestampCompatError("Verkle fork timestamp", c.VerkleTime, newcfg.VerkleTime)
 	}
@@ -1315,6 +1499,8 @@ func (c *ChainConfig) LatestFork(time uint64) forks.Fork {
 	london := c.LondonBlock
 
 	switch {
+	case c.IsOsaka(london, time):
+		return forks.Osaka
 	case c.IsPrague(london, time):
 		return forks.Prague
 	case c.IsCancun(london, time):
@@ -1475,7 +1661,8 @@ type Rules struct {
 	IsHertz                                                 bool
 	IsHertzfix                                              bool
 	IsShanghai, IsKepler, IsFeynman, IsCancun, IsHaber      bool
-	IsBohr, IsPascal, IsPrague, IsVerkle                    bool
+	IsBohr, IsPascal, IsPrague, IsLorentz, IsOsaka          bool
+	IsVerkle                                                bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -1516,6 +1703,8 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		IsBohr:           c.IsBohr(num, timestamp),
 		IsPascal:         c.IsPascal(num, timestamp),
 		IsPrague:         c.IsPrague(num, timestamp),
+		IsOsaka:          c.IsOsaka(num, timestamp),
+		IsLorentz:        c.IsLorentz(num, timestamp),
 		IsVerkle:         c.IsVerkle(num, timestamp),
 		IsEIP4762:        isVerkle,
 	}

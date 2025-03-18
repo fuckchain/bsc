@@ -311,6 +311,11 @@ var (
 		Usage:    "Manually specify the Prague fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
+	OverrideLorentz = &cli.Uint64Flag{
+		Name:     "override.lorentz",
+		Usage:    "Manually specify the Lorentz fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
 	OverrideVerkle = &cli.Uint64Flag{
 		Name:     "override.verkle",
 		Usage:    "Manually specify the Verkle fork timestamp, overriding the bundled setting",
@@ -934,7 +939,7 @@ var (
 	}
 	NATFlag = &cli.StringFlag{
 		Name:     "nat",
-		Usage:    "NAT port mapping mechanism (any|none|upnp|pmp|pmp:<IP>|extip:<IP>)",
+		Usage:    "NAT port mapping mechanism (any|none|upnp|pmp|pmp:<IP>|extip:<IP>|stun:<IP:PORT>)",
 		Value:    "any",
 		Category: flags.NetworkingCategory,
 	}
@@ -2457,6 +2462,10 @@ func SetupMetrics(cfg *metrics.Config, options ...SetupMetricsOption) {
 	}
 	log.Info("Enabling metrics collection")
 	metrics.Enable()
+	if cfg.EnabledExpensive {
+		log.Info("Enabling expensive metrics collection")
+		metrics.EnableExpensive()
+	}
 
 	// InfluxDB exporter.
 	var (

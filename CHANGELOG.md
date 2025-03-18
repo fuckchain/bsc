@@ -1,4 +1,44 @@
 # Changelog
+## v1.5.7
+v1.5.7 conduct small upstream code merge to follow the latest pectra hard fork and apply some bug fix. There are two PR for the code merge:
+* [\#2897](https://github.com/bnb-chain/bsc/pull/2897) upstream: merge tag 'geth-v1.15.1' into bsc-develop
+* [\#2926](https://github.com/bnb-chain/bsc/pull/2926) upstream: pick bug fix from latest geth
+
+Besides code merge, there are also several important bugfix/improvements, and setup mainnet Pascal hard fork time:
+### FEATURE
+* [\#2928](https://github.com/bnb-chain/bsc/pull/2928) config: update BSC Mainnet hardfork date: Pascal & Praque
+
+### BUGFIX
+* [\#2907](https://github.com/bnb-chain/bsc/pull/0000) go.mod: downgrade bls-eth-go-binary to make it same as the prysm-v5.0.0
+
+### IMPROVEMENT
+* [\#2896](https://github.com/bnb-chain/bsc/pull/2896) consensus/parlia: estimate gas reserved for systemTxs
+* [\#2912](https://github.com/bnb-chain/bsc/pull/2912) consensus/parlia: improve performance of func IsSystemTransaction
+* [\#2916](https://github.com/bnb-chain/bsc/pull/2916) miner: avoid to collect requests when getting pending blocks
+* [\#2913](https://github.com/bnb-chain/bsc/pull/2913) core/vm: add basic test cases for blsSignatureVerify
+* [\#2918](https://github.com/bnb-chain/bsc/pull/2918) core/txpool/legacypool/legacypool.go: add gasTip check when reset
+
+## v1.5.6
+v1.5.6 performed another small code sync with Geth upstream, mainly sync the 7702 tx type txpool update, refer: https://github.com/bnb-chain/bsc/pull/2888/
+
+And it also setup the Testnet Pascal hard fork date.
+
+## v1.5.5
+v1.5.5 mainly did a upstream code sync, it catches up to Geth of date around 5th-Feb-2025 to sync the latest Praque hard fork changes, see: https://github.com/bnb-chain/bsc/pull/2856
+
+Besides the code sync, there are a few improvement PRs of BSC:
+### IMPROVEMENT
+* [\#2846](https://github.com/bnb-chain/bsc/pull/2846) tracing: pass *tracing.Hooks around instead of vm.Config
+* [\#2850](https://github.com/bnb-chain/bsc/pull/2850) metric: revert default expensive metrics in blockchain
+* [\#2851](https://github.com/bnb-chain/bsc/pull/2851) eth/tracers: fix call nil OnSystemTxFixIntrinsicGas
+* [\#2862](https://github.com/bnb-chain/bsc/pull/2862) cmd/jsutils/getchainstatus.js: add GetEip7623
+* [\#2867](https://github.com/bnb-chain/bsc/pull/2867) p2p: lowered log lvl for failed enr request
+
+## v1.5.4
+### BUGFIX
+* [\#2874](https://github.com/bnb-chain/bsc/pull/2874) crypto: add IsOnCurve check
+
+
 ## v1.5.3
 ### BUGFIX
 * [\#2827](https://github.com/bnb-chain/bsc/pull/2827) triedb/pathdb: fix nil field for stateSet

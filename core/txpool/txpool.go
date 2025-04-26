@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -75,7 +76,9 @@ type TxPool struct {
 	quit chan chan error         // Quit channel to tear down the head updater
 	term chan struct{}           // Termination channel to detect a closed pool
 
-	sync chan chan error // Testing / simulator channel to block until internal reset is done
+	sync     chan chan error // Testing / simulator channel to block until internal reset is done
+	mu       sync.RWMutex
+	localTxs map[common.Hash]time.Time // 本地交易标记
 }
 
 // New creates a new transaction pool to gather, sort and filter inbound
@@ -92,6 +95,7 @@ func New(gasTip uint64, chain BlockChain, subpools []SubPool) (*TxPool, error) {
 		quit:         make(chan chan error),
 		term:         make(chan struct{}),
 		sync:         make(chan chan error),
+		localTxs:     make(map[common.Hash]time.Time),
 	}
 	for i, subpool := range subpools {
 		if err := subpool.Init(gasTip, head, pool.reserver(i, subpool)); err != nil {
@@ -101,6 +105,15 @@ func New(gasTip uint64, chain BlockChain, subpools []SubPool) (*TxPool, error) {
 			return nil, err
 		}
 	}
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		for {
+			select {
+			case <-ticker.C:
+				pool.cleanupLocalTxs()
+			}
+		}
+	}()
 	go pool.loop(head, chain)
 	return pool, nil
 }
@@ -510,5 +523,34 @@ func (p *TxPool) Sync() error {
 func (p *TxPool) Clear() {
 	for _, subpool := range p.subpools {
 		subpool.Clear()
+	}
+}
+
+// 添加本地交易时标记
+func (pool *TxPool) AddLocal(tx *types.Transaction) {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	pool.localTxs[tx.Hash()] = time.Now()
+}
+
+// 判断是否为本地交易
+func (pool *TxPool) IsLocalTx(hash common.Hash) bool {
+	pool.mu.RLock()
+	defer pool.mu.RUnlock()
+	_, exists := pool.localTxs[hash]
+	return exists
+}
+
+// 定期清理过期交易
+func (pool *TxPool) cleanupLocalTxs() {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	now := time.Now()
+	for hash, timestamp := range pool.localTxs {
+		if now.Sub(timestamp) > 10*time.Minute {
+			delete(pool.localTxs, hash)
+		}
 	}
 }

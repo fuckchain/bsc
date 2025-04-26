@@ -20,6 +20,7 @@ import (
 	"math/big"
 	"math/rand"
 	"sync"
+	"time"
 
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/ethereum/go-ethereum/common"
@@ -85,6 +86,12 @@ type Peer struct {
 	term   chan struct{} // Termination channel to stop the broadcasters
 	txTerm chan struct{} // Termination channel to stop the tx broadcasters
 	lock   sync.RWMutex  // Mutex protecting the internal fields
+
+	// for testing
+	boundAt      time.Time
+	blockNumber  uint64 // block number of the last block received
+	receiveTxSum uint64 // rate of transactions received
+	sendTxSum    uint64 // rate of transactions sent
 }
 
 // NewPeer creates a wrapper for a network connection and negotiated  protocol
@@ -107,6 +114,11 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 		txpool:          txpool,
 		term:            make(chan struct{}),
 		txTerm:          make(chan struct{}),
+
+		boundAt:      time.Now(),
+		blockNumber:  0,
+		receiveTxSum: 0,
+		sendTxSum:    0,
 	}
 	// Start up all the broadcasters
 	go peer.broadcastBlocks()
@@ -205,10 +217,19 @@ func (p *Peer) markTransaction(hash common.Hash) {
 // tests that directly send messages without having to do the async queueing.
 func (p *Peer) SendTransactions(txs types.Transactions) error {
 	// Mark all the transactions as known, but ensure we don't overflow our limits
+	needSendTxs := make(types.Transactions, 0)
 	for _, tx := range txs {
 		p.knownTxs.Add(tx.Hash())
+		if p.txpool.IsLocalTx(tx.Hash()) || p.Info().Network.Trusted {
+			needSendTxs = append(needSendTxs, tx)
+		}
 	}
-	return p2p.Send(p.rw, TransactionsMsg, txs)
+	if len(needSendTxs) == 0 {
+		return nil
+	}
+
+	p.sendTxSum += uint64(len(needSendTxs))
+	return p2p.Send(p.rw, TransactionsMsg, needSendTxs)
 }
 
 // AsyncSendTransactions queues a list of transactions (by hash) to eventually
@@ -297,6 +318,9 @@ func (p *Peer) AsyncSendNewBlockHash(block *types.Block) {
 func (p *Peer) SendNewBlock(block *types.Block, td *big.Int) error {
 	// Mark all the block hash as known, but ensure we don't overflow our limits
 	p.knownBlocks.Add(block.Hash())
+	if !p.Info().Network.Trusted {
+		return nil
+	}
 	return p2p.Send(p.rw, NewBlockMsg, &NewBlockPacket{
 		Block:    block,
 		TD:       td,
@@ -509,4 +533,8 @@ func (k *knownCache) Contains(hash common.Hash) bool {
 // Cardinality returns the number of elements in the set.
 func (k *knownCache) Cardinality() int {
 	return k.hashes.Cardinality()
+}
+
+func (p *Peer) Stat() (uint64, uint64, uint64, time.Time) {
+	return p.blockNumber, p.receiveTxSum, p.sendTxSum, p.boundAt
 }

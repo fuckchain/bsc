@@ -97,6 +97,8 @@ type txPool interface {
 	// SubscribeReannoTxsEvent should return an event subscription of
 	// ReannoTxsEvent and send events to the given channel.
 	SubscribeReannoTxsEvent(chan<- core.ReannoTxsEvent) event.Subscription
+
+	IsLocalTx(hash common.Hash) bool
 }
 
 // votePool defines the methods needed from a votes pool implementation to

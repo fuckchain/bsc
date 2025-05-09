@@ -2617,7 +2617,7 @@ func (s *BundleAPI) CallBundle(ctx context.Context, args CallBundleArgs) (map[st
 	}
 	baseFee := parent.BaseFee
 	if s.b.ChainConfig().IsLondon(big.NewInt(args.BlockNumber.Int64())) {
-		baseFee = new(big.Int).SetUint64(params.InitialBaseFee)
+		baseFee = new(big.Int).SetUint64(params.InitialBaseFeeForBSC)
 	}
 	header := &types.Header{
 		ParentHash: parent.Hash(),

@@ -223,19 +223,12 @@ func (p *Peer) markTransaction(hash common.Hash) {
 // tests that directly send messages without having to do the async queueing.
 func (p *Peer) SendTransactions(txs types.Transactions) error {
 	// Mark all the transactions as known, but ensure we don't overflow our limits
-	needSendTxs := make(types.Transactions, 0)
 	for _, tx := range txs {
 		p.knownTxs.Add(tx.Hash())
-		if p.txpool.IsLocalTx(tx.Hash()) || p.Info().Network.Trusted {
-			needSendTxs = append(needSendTxs, tx)
-		}
-	}
-	if len(needSendTxs) == 0 {
-		return nil
 	}
 
-	p.sendTxSum += uint64(len(needSendTxs))
-	return p2p.Send(p.rw, TransactionsMsg, needSendTxs)
+	p.sendTxSum += uint64(len(txs))
+	return p2p.Send(p.rw, TransactionsMsg, txs)
 }
 
 // AsyncSendTransactions queues a list of transactions (by hash) to eventually
@@ -324,9 +317,6 @@ func (p *Peer) AsyncSendNewBlockHash(block *types.Block) {
 func (p *Peer) SendNewBlock(block *types.Block, td *big.Int) error {
 	// Mark all the block hash as known, but ensure we don't overflow our limits
 	p.knownBlocks.Add(block.Hash())
-	if !p.Info().Network.Trusted {
-		return nil
-	}
 	return p2p.Send(p.rw, NewBlockMsg, &NewBlockPacket{
 		Block:    block,
 		TD:       td,

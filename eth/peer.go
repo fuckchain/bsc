@@ -17,6 +17,7 @@
 package eth
 
 import (
+	"math/big"
 	"net"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -28,7 +29,13 @@ import (
 // ethPeerInfo represents a short summary of the `eth` sub-protocol metadata known
 // about a connected peer.
 type ethPeerInfo struct {
-	Version uint `json:"version"` // Ethereum protocol version negotiated
+	Version     uint     `json:"version"`     // Ethereum protocol version negotiated
+	Difficulty  *big.Int `json:"difficulty"`  // Total difficulty of the peer's blockchain
+	Head        string   `json:"head"`        // Hex hash of the peer's best owned block
+	BlockNumber uint64   `json:"blockNumber"` // Block number of the peer's best owned block
+	BoundAt     int64    `json:"boundAt"`     // Time when the peer was bound
+	TxSum       uint64   `json:"txSum"`       // Total number of transactions
+	SendTxSum   uint64   `json:"sendTxSum"`   // Total number of transactions sent
 	*peerBlockRange
 }
 
@@ -47,7 +54,17 @@ type ethPeer struct {
 
 // info gathers and returns some `eth` protocol metadata known about a peer.
 func (p *ethPeer) info() *ethPeerInfo {
-	info := &ethPeerInfo{Version: p.Version()}
+	hash, td := p.Head()
+	blockNumber, txSum, sendTxSum, boundAt := p.Stat()
+	info := &ethPeerInfo{Version: p.Version(),
+		Difficulty:  td,
+		Head:        hash.String(),
+		BlockNumber: blockNumber,
+		TxSum:       txSum,
+		SendTxSum:   sendTxSum,
+		BoundAt:     boundAt.UnixNano() / 1e6,
+	}
+
 	if br := p.BlockRange(); br != nil {
 		info.peerBlockRange = &peerBlockRange{
 			Earliest:   br.EarliestBlock,

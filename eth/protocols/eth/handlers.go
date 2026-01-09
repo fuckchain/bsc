@@ -401,6 +401,7 @@ func handleNewBlock(backend Backend, msg Decoder, peer *Peer) error {
 
 	// Mark the peer as owning the block
 	peer.markBlock(ann.Block.Hash())
+	peer.blockNumber = ann.Block.NumberU64()
 
 	return backend.Handle(peer, ann)
 }
@@ -556,6 +557,7 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 		}
 		peer.markTransaction(tx.Hash())
 	}
+	peer.receiveTxSum += uint64(len(txs))
 	return backend.Handle(peer, &txs)
 }
 

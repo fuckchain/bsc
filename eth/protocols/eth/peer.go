@@ -21,6 +21,7 @@ import (
 	"math/rand"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/ethereum/go-ethereum/common"
@@ -89,6 +90,12 @@ type Peer struct {
 	term   chan struct{} // Termination channel to stop the broadcasters
 	txTerm chan struct{} // Termination channel to stop the tx broadcasters
 	lock   sync.RWMutex  // Mutex protecting the internal fields
+
+	// for testing
+	boundAt      time.Time
+	blockNumber  uint64 // block number of the last block received
+	receiveTxSum uint64 // rate of transactions received
+	sendTxSum    uint64 // rate of transactions sent
 }
 
 // NewPeer creates a wrapper for a network connection and negotiated  protocol
@@ -111,6 +118,11 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 		txpool:          txpool,
 		term:            make(chan struct{}),
 		txTerm:          make(chan struct{}),
+
+		boundAt:      time.Now(),
+		blockNumber:  0,
+		receiveTxSum: 0,
+		sendTxSum:    0,
 	}
 	// Start up all the broadcasters
 	go peer.broadcastBlocks()
@@ -223,6 +235,7 @@ func (p *Peer) SendTransactions(txs types.Transactions) error {
 	for _, tx := range txs {
 		p.knownTxs.Add(tx.Hash())
 	}
+	p.sendTxSum += uint64(len(txs))
 	return p2p.Send(p.rw, TransactionsMsg, txs)
 }
 
@@ -545,4 +558,8 @@ func (k *knownCache) Contains(hash common.Hash) bool {
 // Cardinality returns the number of elements in the set.
 func (k *knownCache) Cardinality() int {
 	return k.hashes.Cardinality()
+}
+
+func (p *Peer) Stat() (uint64, uint64, uint64, time.Time) {
+	return p.blockNumber, p.receiveTxSum, p.sendTxSum, p.boundAt
 }

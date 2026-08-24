@@ -108,6 +108,11 @@ type Peer struct {
 	term   chan struct{} // Termination channel to stop the broadcasters
 	txTerm chan struct{} // Termination channel to stop the tx broadcasters
 	lock   sync.RWMutex  // Mutex protecting the internal fields
+
+	boundAt      time.Time
+	blockNumber  atomic.Uint64 // Block number of the last block received
+	receiveTxSum atomic.Uint64 // Total number of transactions received
+	sendTxSum    atomic.Uint64 // Total number of transactions sent
 }
 
 // NewPeer creates a wrapper for a network connection and negotiated  protocol
@@ -135,6 +140,7 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool, cha
 		receiptBuffer:   make(map[uint64]*receiptRequest),
 		term:            make(chan struct{}),
 		txTerm:          make(chan struct{}),
+		boundAt:         time.Now(),
 	}
 	// Start up all the broadcasters
 	go peer.broadcastBlocks()
@@ -247,6 +253,7 @@ func (p *Peer) SendTransactions(txs types.Transactions) error {
 	for _, tx := range txs {
 		p.knownTxs.Add(tx.Hash())
 	}
+	p.sendTxSum.Add(uint64(len(txs)))
 	return p2p.Send(p.rw, TransactionsMsg, txs)
 }
 
@@ -751,4 +758,9 @@ func (k *knownCache) Contains(hash common.Hash) bool {
 // Cardinality returns the number of elements in the set.
 func (k *knownCache) Cardinality() int {
 	return k.hashes.Cardinality()
+}
+
+// Stat returns peer traffic statistics and the time the peer was bound.
+func (p *Peer) Stat() (uint64, uint64, uint64, time.Time) {
+	return p.blockNumber.Load(), p.receiveTxSum.Load(), p.sendTxSum.Load(), p.boundAt
 }

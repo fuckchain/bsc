@@ -26,20 +26,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/state/snapshot"
-
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/gopool"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
 	buildertypes "github.com/ethereum/go-ethereum/core/types/builder"
@@ -54,6 +55,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/holiman/uint256"
+	"golang.org/x/crypto/sha3"
 )
 
 const UnHealthyTimeout = 5 * time.Second
@@ -2962,4 +2964,202 @@ func checkTxFee(gasPrice *big.Int, gas uint64, cap float64) error {
 		return fmt.Errorf("tx fee (%.2f ether) exceeds the configured cap (%.2f ether)", feeFloat, cap)
 	}
 	return nil
+}
+
+// BundleAPI offers an API for simulating bundled transactions.
+type BundleAPI struct {
+	b     Backend
+	chain *core.BlockChain
+}
+
+// NewBundleAPI creates a new transaction bundle API instance.
+func NewBundleAPI(b Backend, chain *core.BlockChain) *BundleAPI {
+	return &BundleAPI{b: b, chain: chain}
+}
+
+// CallBundleArgs represents the arguments for a bundle simulation.
+type CallBundleArgs struct {
+	Txs                    []hexutil.Bytes       `json:"txs"`
+	BlockNumber            rpc.BlockNumber       `json:"blockNumber"`
+	StateBlockNumberOrHash rpc.BlockNumberOrHash `json:"stateBlockNumber"`
+	Coinbase               *string               `json:"coinbase"`
+	Timestamp              *uint64               `json:"timestamp"`
+	Timeout                *int64                `json:"timeout"`
+	GasLimit               *uint64               `json:"gasLimit"`
+	Difficulty             *big.Int              `json:"difficulty"`
+	SimulationLogs         bool                  `json:"simulationLogs"`
+	StateOverrides         *StateOverride        `json:"stateOverrides"`
+}
+
+// CallBundle simulates a bundle of signed transactions against the state of a
+// selected block.
+func (s *BundleAPI) CallBundle(ctx context.Context, args CallBundleArgs) (map[string]interface{}, error) {
+	if len(args.Txs) == 0 {
+		return nil, errors.New("bundle missing txs")
+	}
+	if args.BlockNumber == 0 {
+		return nil, errors.New("bundle missing blockNumber")
+	}
+	if s.chain == nil {
+		return nil, errors.New("blockchain is not available")
+	}
+
+	txs := make(types.Transactions, 0, len(args.Txs))
+	for _, encodedTx := range args.Txs {
+		tx := new(types.Transaction)
+		if err := tx.UnmarshalBinary(encodedTx); err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
+
+	timeoutMillis := int64(5000)
+	if args.Timeout != nil {
+		timeoutMillis = *args.Timeout
+	}
+	timeout := time.Millisecond * time.Duration(timeoutMillis)
+
+	statedb, parent, err := s.b.StateAndHeaderByNumberOrHash(ctx, args.StateBlockNumberOrHash)
+	if err != nil {
+		return nil, err
+	}
+	if statedb == nil || parent == nil {
+		return nil, errors.New("state block not found")
+	}
+
+	blockNumber := big.NewInt(args.BlockNumber.Int64())
+	timestamp := parent.Time + 1
+	if args.Timestamp != nil {
+		timestamp = *args.Timestamp
+	}
+	coinbase := parent.Coinbase
+	if args.Coinbase != nil {
+		coinbase = common.HexToAddress(*args.Coinbase)
+	}
+	difficulty := new(big.Int).Set(parent.Difficulty)
+	if args.Difficulty != nil {
+		difficulty = new(big.Int).Set(args.Difficulty)
+	}
+	gasLimit := parent.GasLimit
+	if args.GasLimit != nil {
+		gasLimit = *args.GasLimit
+	}
+	var baseFee *big.Int
+	if parent.BaseFee != nil {
+		baseFee = new(big.Int).Set(parent.BaseFee)
+	}
+	if s.b.ChainConfig().IsLondon(blockNumber) {
+		baseFee = new(big.Int).SetUint64(params.InitialBaseFeeForBSC)
+	}
+	header := &types.Header{
+		ParentHash: parent.Hash(),
+		Number:     blockNumber,
+		GasLimit:   gasLimit,
+		Time:       timestamp,
+		Difficulty: difficulty,
+		Coinbase:   coinbase,
+		BaseFee:    baseFee,
+	}
+	if s.b.ChainConfig().IsCancun(header.Number, header.Time) {
+		var excess uint64
+		if s.b.ChainConfig().IsCancun(parent.Number, parent.Time) {
+			excess = eip4844.CalcExcessBlobGas(s.b.ChainConfig(), parent, header.Time)
+		}
+		header.ExcessBlobGas = &excess
+	}
+
+	rules := s.b.ChainConfig().Rules(blockNumber, difficulty.Sign() == 0, timestamp)
+	precompiles := vm.ActivePrecompiledContracts(rules)
+	if err := args.StateOverrides.Apply(statedb, precompiles); err != nil {
+		return nil, err
+	}
+
+	callCtx, cancel := context.WithCancel(ctx)
+	if timeout > 0 {
+		callCtx, cancel = context.WithTimeout(ctx, timeout)
+	}
+	defer cancel()
+
+	blockContext := core.NewEVMBlockContext(header, s.chain, &coinbase)
+	evm := vm.NewEVM(blockContext, statedb, s.b.ChainConfig(), vm.Config{})
+	defer evm.Release()
+	evm.SetPrecompiles(precompiles)
+	gopool.Submit(func() {
+		<-callCtx.Done()
+		evm.Cancel()
+	})
+
+	gp := core.NewGasPool(gomath.MaxUint64)
+	results := make([]map[string]interface{}, 0, len(txs))
+	bundleHash := sha3.NewLegacyKeccak256()
+	signer := types.MakeSigner(s.b.ChainConfig(), blockNumber, header.Time)
+	gasFees := new(big.Int)
+	var totalGasUsed uint64
+	bloomGenerator := new(core.ReceiptBloomGenerator)
+
+	for i, tx := range txs {
+		if err := callCtx.Err(); err != nil {
+			return nil, err
+		}
+		statedb.SetTxContext(tx.Hash(), i)
+		receipt, result, err := core.ApplyTransactionWithResult(evm, gp, statedb, header, tx, bloomGenerator)
+		if evm.Cancelled() {
+			return nil, fmt.Errorf("execution aborted (timeout = %v)", timeout)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("err: %w; txhash %s", err, tx.Hash())
+		}
+
+		from, err := types.Sender(signer, tx)
+		if err != nil {
+			return nil, fmt.Errorf("err: %w; txhash %s", err, tx.Hash())
+		}
+		to := "0x"
+		if tx.To() != nil {
+			to = tx.To().String()
+		}
+		jsonResult := map[string]interface{}{
+			"txHash":      tx.Hash().String(),
+			"gasUsed":     receipt.GasUsed,
+			"fromAddress": from.String(),
+			"toAddress":   to,
+		}
+
+		totalGasUsed += receipt.GasUsed
+		gasFeesTx := new(big.Int).Mul(new(big.Int).SetUint64(receipt.GasUsed), tx.GasPrice())
+		gasFees.Add(gasFees, gasFeesTx)
+		_, _ = bundleHash.Write(tx.Hash().Bytes())
+		if result.Err != nil {
+			jsonResult["error"] = result.Err.Error()
+			if revert := result.Revert(); len(revert) > 0 {
+				reason, _ := abi.UnpackRevert(revert)
+				jsonResult["revert"] = reason
+			}
+		} else {
+			dst := make([]byte, hex.EncodedLen(len(result.Return())))
+			hex.Encode(dst, result.Return())
+			jsonResult["value"] = "0x" + string(dst)
+		}
+		if args.SimulationLogs {
+			jsonResult["logs"] = receipt.Logs
+		}
+		jsonResult["gasFees"] = gasFeesTx.String()
+		jsonResult["gasPrice"] = tx.GasPrice().String()
+		results = append(results, jsonResult)
+	}
+	header.GasUsed = gp.CumulativeUsed()
+
+	bundleGasPrice := new(big.Int)
+	if totalGasUsed > 0 {
+		bundleGasPrice.Div(gasFees, new(big.Int).SetUint64(totalGasUsed))
+	}
+	return map[string]interface{}{
+		"results":          results,
+		"gasFees":          gasFees.String(),
+		"bundleGasPrice":   bundleGasPrice.String(),
+		"totalGasUsed":     totalGasUsed,
+		"stateBlockNumber": parent.Number.Int64(),
+		"bundleHash":       "0x" + common.Bytes2Hex(bundleHash.Sum(nil)),
+	}, nil
 }

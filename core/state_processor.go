@@ -224,9 +224,15 @@ func postExecution(ctx context.Context, config *params.ChainConfig, block *types
 // ApplyTransactionWithEVM attempts to apply a transaction to the given state database
 // and uses the input parameters for its environment similar to ApplyTransaction. However,
 // this method takes an already created EVM instance as input.
-func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, blockNumber *big.Int, blockHash common.Hash, blockTime uint64, tx *types.Transaction, evm *vm.EVM, receiptProcessors ...ReceiptProcessor) (receipt *types.Receipt, err error) {
+func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, blockNumber *big.Int, blockHash common.Hash, blockTime uint64, tx *types.Transaction, evm *vm.EVM, receiptProcessors ...ReceiptProcessor) (*types.Receipt, error) {
+	receipt, _, err := applyTransactionWithResult(msg, gp, statedb, blockNumber, blockHash, blockTime, tx, evm, receiptProcessors...)
+	return receipt, err
+}
+
+// applyTransactionWithResult applies a transaction using an existing EVM and
+// returns both the receipt and execution result.
+func applyTransactionWithResult(msg *Message, gp *GasPool, statedb *state.StateDB, blockNumber *big.Int, blockHash common.Hash, blockTime uint64, tx *types.Transaction, evm *vm.EVM, receiptProcessors ...ReceiptProcessor) (receipt *types.Receipt, result *ExecutionResult, err error) {
 	// Add timing measurement
-	var result *ExecutionResult
 	if tx.Gas() > largeTxGasLimit {
 		start := time.Now()
 		defer func() {
@@ -248,7 +254,7 @@ func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, 
 	// Apply the transaction to the current state (included in the env).
 	result, err = ApplyMessage(evm, msg, gp)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// Update the state with pending changes.
 	var root []byte
@@ -262,7 +268,7 @@ func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, 
 	if statedb.Database().Type().Is(state.TypeUBT) {
 		statedb.AccessEvents().Merge(evm.AccessEvents)
 	}
-	return MakeReceipt(evm, result, statedb, blockNumber, blockHash, blockTime, tx, gp.CumulativeUsed(), root, receiptProcessors...), nil
+	return MakeReceipt(evm, result, statedb, blockNumber, blockHash, blockTime, tx, gp.CumulativeUsed(), root, receiptProcessors...), result, nil
 }
 
 // MakeReceipt generates the receipt object for a transaction given its execution result.
@@ -316,6 +322,16 @@ func ApplyTransaction(evm *vm.EVM, gp *GasPool, statedb *state.StateDB, header *
 	}
 	// Create a new context to be used in the EVM environment
 	return ApplyTransactionWithEVM(msg, gp, statedb, header.Number, header.Hash(), header.Time, tx, evm, receiptProcessors...)
+}
+
+// ApplyTransactionWithResult attempts to apply a transaction to the given state
+// database and returns both the receipt and execution result.
+func ApplyTransactionWithResult(evm *vm.EVM, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, receiptProcessors ...ReceiptProcessor) (*types.Receipt, *ExecutionResult, error) {
+	msg, err := TransactionToMessage(tx, types.MakeSigner(evm.ChainConfig(), header.Number, header.Time), header.BaseFee)
+	if err != nil {
+		return nil, nil, err
+	}
+	return applyTransactionWithResult(msg, gp, statedb, header.Number, header.Hash(), header.Time, tx, evm, receiptProcessors...)
 }
 
 // ProcessBeaconBlockRoot applies the EIP-4788 system call to the beacon block root

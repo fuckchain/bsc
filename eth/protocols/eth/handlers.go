@@ -407,6 +407,7 @@ func handleNewBlock(backend Backend, msg Decoder, peer *Peer) error {
 
 	// Mark the peer as owning the block
 	peer.markBlock(ann.Block.Hash())
+	peer.blockNumber.Store(ann.Block.NumberU64())
 
 	return backend.Handle(peer, ann)
 }
@@ -720,6 +721,7 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	if txs.Len() > maxTransactionAnnouncements {
 		return fmt.Errorf("too many transactions")
 	}
+	peer.receiveTxSum.Add(uint64(txs.Len()))
 	return backend.Handle(peer, &txs)
 }
 
